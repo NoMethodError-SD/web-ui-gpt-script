@@ -1,0 +1,4 @@
+.vscode
+scripts/openai_batcher_config.json
+scripts/system_prompts.json
+scripts/user_prompts.json
