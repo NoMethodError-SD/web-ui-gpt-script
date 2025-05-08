@@ -8,6 +8,7 @@ from modules.processing import process_images
 from tqdm import tqdm
 import math
 import copy
+from itertools import chain
 
 # ========== VERSION COMPATIBILITY ==========
 try:
@@ -250,6 +251,7 @@ class Script(scripts.Script):
                 selection_mode = gr.Dropdown(label='Selection Mode', choices=['per image', 'per prompt'], value='per image', elem_id=self.elem_id("selection_mode"))
             with gr.Column():
                 randomize_seed = gr.Checkbox(label='Randomize seed for each image', value=True, elem_id=self.elem_id("randomize_seed"))
+                randomize_orientation = gr.Checkbox(label='Randomly flip orientation', value=False, elem_id=self.elem_id("randomize_orientation"))
 
         # Setup Prompt UI
         with gr.Row():
@@ -352,9 +354,9 @@ class Script(scripts.Script):
         wire_preset_row(setup_preset_dropdown, setup_load_btn, setup_save_btn, setup_save_row, setup_save_title, setup_save_confirm, setup_save_cancel, setup_prompt, 'system')
         wire_preset_row(user_preset_dropdown, user_load_btn, user_save_btn, user_save_row, user_save_title, user_save_confirm, user_save_cancel, main_prompt, 'user')
 
-        return [setup_prompt, main_prompt, prompts_count, batch_size, model_choices, selection_type, selection_mode, randomize_seed]
+        return [setup_prompt, main_prompt, prompts_count, batch_size, model_choices, selection_type, selection_mode, randomize_seed, randomize_orientation]
 
-    def run(self, p, setup_prompt, main_prompt, prompts_count, batch_size, model_choices, selection_type, selection_mode, randomize_seed):
+    def run(self, p, setup_prompt, main_prompt, prompts_count, batch_size, model_choices, selection_type, selection_mode, randomize_seed, randomize_orientation):
         from modules.processing import fix_seed, Processed, process_images
         import random
         
@@ -404,9 +406,8 @@ class Script(scripts.Script):
         image_no = 0
         for prompt_idx, prompt in enumerate(raw_prompts):
             for batch_idx in range(batch_size):
-                image_no += 1
                 shared.state.job_no = image_no
-                shared.state.textinfo = f"Generating {image_no}/{total_images} images..."
+                shared.state.textinfo = f"Generating: prompt {prompt_idx+1} image {batch_idx+1} / {image_no+1} of {total_images}..."
                 p_copy = copy.copy(p)
                 p_copy.prompt = prompt
                 p_copy.n_iter = 1  # Process one image at a time
@@ -417,6 +418,11 @@ class Script(scripts.Script):
                     print(f"🎲 Using seed: {p_copy.seed}")
                 else:
                     p_copy.seed = original_seed
+                
+                # Handle orientation
+                if randomize_orientation and random.random() < 0.5:
+                    p_copy.width, p_copy.height = p_copy.height, p_copy.width
+                    print(f"🔄 Flipped orientation to {p_copy.width}x{p_copy.height}")
                 
                 # Handle model selection
                 if model_choices:
@@ -436,10 +442,11 @@ class Script(scripts.Script):
                         p_copy.override_settings_restore_afterwards = True
                 
                 # Process single image
+                image_no += 1
                 processed = process_images(p_copy)
                 processed_results.append(processed)
                 shared.state.textinfo = f"Processed {shared.state.job_no}/{total_images} images"
-
+        
         # Combine all results
         if len(processed_results) == 0:
             return Processed(p, [], p.seed, "")
