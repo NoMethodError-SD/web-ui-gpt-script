@@ -407,7 +407,7 @@ class Script(scripts.Script):
         for prompt_idx, prompt in enumerate(raw_prompts):
             for batch_idx in range(batch_size):
                 shared.state.job_no = image_no
-                shared.state.textinfo = f"Generating: prompt {prompt_idx+1} image {batch_idx+1} / {image_no+1} of {total_images}..."
+                shared.state.textinfo = f"Generating... Prompt {prompt_idx+1} of {prompts_count}. Image {batch_idx+1} of {batch_size}. Total: {image_no+1} of {total_images}."
                 p_copy = copy.copy(p)
                 p_copy.prompt = prompt
                 p_copy.n_iter = 1  # Process one image at a time
